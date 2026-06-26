@@ -1,0 +1,4 @@
+# Never commit these
+config/webhook.conf
+bin/
+*.o
