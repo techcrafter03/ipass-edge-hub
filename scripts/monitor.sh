@@ -96,6 +96,44 @@ uptime_str=$(uptime -p | sed 's/up //')
 timestamp_iso=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
 log "INFO" "CPU: ${cpu_temp_c}C | RAM: ${mem_percent}% | Disk: ${disk_percent} | Load: ${load_avg}"
+# --- Alert Thresholds --------------------------------------------------------
+alert_triggered=false
+alert_message=""
+
+if (( $(echo "$cpu_temp_c > 80.0" | bc -l) )); then
+    alert_triggered=true
+    alert_message="🌡️ CPU TEMP CRITICAL: ${cpu_temp_c}°C (threshold: 80°C)"
+    log "WARN" "CPU temperature critical: ${cpu_temp_c}°C"
+fi
+
+if (( $(echo "$mem_percent > 85.0" | bc -l) )); then
+    alert_triggered=true
+    alert_message="${alert_message}\n💾 RAM CRITICAL: ${mem_percent}% used (threshold: 85%)"
+    log "WARN" "RAM usage critical: ${mem_percent}%"
+fi
+
+if [ "$alert_triggered" = true ]; then
+    alert_payload=$(cat <<EOF
+{
+  "username": "iPaaS Edge Hub",
+  "embeds": [{
+    "title": "🚨 ALERT — $(hostname)",
+    "description": "${alert_message}",
+    "color": 15158332,
+    "footer": {
+      "text": "iPaaS Edge Hub • Raspberry Pi 3 • Raspbian Bookworm 64-bit"
+    },
+    "timestamp": "${timestamp_iso}"
+  }]
+}
+EOF
+)
+    curl -s -o /dev/null \
+        -H "Content-Type: application/json" \
+        -d "$alert_payload" \
+        "$DISCORD_WEBHOOK_URL"
+    log "WARN" "Alert notification sent to Discord."
+fi
 
 # --- Build JSON Payload ------------------------------------------------------
 log "INFO" "Building Discord JSON payload..."
@@ -168,5 +206,20 @@ fi
 echo ""
 echo "$engine_output"
 echo ""
+# --- SQLite Logging ----------------------------------------------------------
+log "INFO" "Writing metrics to SQLite database..."
 
+sqlite3 ~/ipass/ipass_metrics.db << EOF
+INSERT INTO metrics (timestamp, cpu_temp, mem_percent, disk_percent, load_avg, uptime)
+VALUES (
+    '${timestamp_iso}',
+    ${cpu_temp_c},
+    ${mem_percent},
+    '${disk_percent}',
+    '${load_avg}',
+    '${uptime_str}'
+);
+EOF
+
+log "INFO" "Metrics written to database successfully."
 log "INFO" "All tasks complete. Log: $LOG_FILE"
