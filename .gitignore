@@ -2,3 +2,4 @@
 config/webhook.conf
 bin/
 *.o
+ipass_metrics.db
