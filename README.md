@@ -14,3 +14,11 @@
 
 ## Author
 Yash Kale — 26.06.2026
+
+# 🎬 Video-Lebenslauf & Live System-Demo
+
+[![Mini-iPaaS Project Walkthrough](https://youtube.com)](https://youtu.be/Xi6Ed8yoJnc)
+
+*Klicken Sie auf das Bild oben, um meine vollständige technische Präsentation und den Live-Infrastruktur-Walkthrough auf Deutsch zu sehen!*
+
+
