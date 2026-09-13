@@ -61,7 +61,6 @@ Default thresholds (configurable):
 | Database | SQLite |
 | Automation | systemd timer (every 5 minutes) |
 | Compatibility | Any Linux system — edge devices to servers |
-<img width="1028" height="490" alt="image" src="https://github.com/user-attachments/assets/cc780419-9e7c-4d99-87c2-384b07ef4f68" />
 
 
 ## Quick Deploy — Under 10 Minutes
@@ -108,19 +107,13 @@ Every metric, every alert, every threshold response logged to
 SQLite — full traceability for compliance requirements.
 
 ## Architecture & Vision
+<img width="1028" height="490" alt="image" src="https://github.com/user-attachments/assets/cc780419-9e7c-4d99-87c2-384b07ef4f68" />
 
-This agent is the foundation of a larger vision — a distributed 
-infrastructure nervous system for Linux environments. Independent 
-agents deployed across an entire server network, each operating 
-autonomously, each reporting to a central visibility layer.
-
-Every action logged. Every threshold response auditable. Every 
-node accountable.
-
-The same lightweight principles that make this agent effective on 
-an edge device scale directly to enterprise Linux infrastructure — 
-without the complexity ceiling of traditional monitoring platforms.
-
+iPaaS Edge Monitoring Hub is evolving into a fully deployable 
+Linux monitoring platform — lightweight agents that protect any 
+Linux infrastructure, from a single server to a distributed 
+network of machines. Built for MSPs and IT Systemhäuser who need 
+reliable, auditable monitoring without enterprise complexity.
 ## Demo
 
 ▶ [Watch full 5-minute live demo](https://youtu.be/Xi6Ed8yoJnc) 
