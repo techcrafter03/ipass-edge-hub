@@ -61,6 +61,8 @@ Default thresholds (configurable):
 | Database | SQLite |
 | Automation | systemd timer (every 5 minutes) |
 | Compatibility | Any Linux system — edge devices to servers |
+<img width="1028" height="490" alt="image" src="https://github.com/user-attachments/assets/cc780419-9e7c-4d99-87c2-384b07ef4f68" />
+
 
 ## Quick Deploy — Under 10 Minutes
 
@@ -121,7 +123,9 @@ without the complexity ceiling of traditional monitoring platforms.
 
 ## Demo
 
-▶ [Watch full 5-minute live demo](https://youtu.be/Xi6Ed8yoJnc)
+▶ [Watch full 5-minute live demo](https://youtu.be/Xi6Ed8yoJnc) 
+<img width="892" height="657" alt="image" src="https://github.com/user-attachments/assets/a0f69dde-3e76-4968-8fad-16148ff371fb" />
+
 
 ## Roadmap
 
@@ -139,4 +143,3 @@ Self-taught developer — C, Bash, Linux, SQLite, systemd, WireGuard
 
 🌐 [Portfolio](https://techcrafter03.github.io/portfolio)
 📧 webcrafters071@gmail.com
-🇩🇪 Pursuing Fachinformatiker Systemintegration Ausbildung — Germany 2026
