@@ -125,7 +125,7 @@ reliable, auditable monitoring without enterprise complexity.
 - [ ] One-script setup — full deployment in under 10 minutes
 - [ ] Webhook agnostic — Slack, Teams, email support
 - [ ] Configurable thresholds via config file
-- [ ] Auto-shutdown and cooling response on critical threshold
+- [x] Auto-shutdown on critical temperature threshold
 - [ ] Web dashboard — live metrics visualization
 - [ ] Multi-machine support — central collector for distributed agents
 
