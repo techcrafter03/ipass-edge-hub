@@ -121,7 +121,7 @@ if [ "$alert_triggered" = true ]; then
     "description": "${alert_message}",
     "color": 15158332,
     "footer": {
-      "text": "iPaaS Edge Hub • Raspberry Pi 3 • Raspbian Bookworm 64-bit"
+      "text": "iPaaS Edge Monitoring Hub • Linux"
     },
     "timestamp": "${timestamp_iso}"
   }]
@@ -135,16 +135,36 @@ EOF
     log "WARN" "Alert notification sent to Discord."
 fi
 
+# --- Critical Threshold: Auto-Shutdown Response ----------------------
+# Two separate thresholds:
+# WARNING (existing): 80°C CPU, 85% RAM → Discord alert only
+# CRITICAL (new):     90°C CPU, 95% RAM → Alert + shutdown
+
+CRITICAL_TEMP=90.0
+CRITICAL_RAM=95.0
+if (( $(echo "$cpu_temp_c > $CRITICAL_TEMP" | bc -l) )); then
+    log "CRITICAL" "CPU at ${cpu_temp_c}°C — shutdown initiated"
+    curl -s -o /dev/null \
+        -H "Content-Type: application/json" \
+        -d "{\"username\":\"iPaaS Edge Hub\",\"content\":\"🔴 CRITICAL: CPU ${cpu_temp_c}°C — shutting down $(hostname) in 60 seconds\"}" \
+        "$DISCORD_WEBHOOK_URL"
+    sudo shutdown -h +1 "iPaaS: CPU critical threshold exceeded"
+fi
+if (( $(echo "$mem_percent > $CRITICAL_RAM" | bc -l) )); then
+    log "CRITICAL" "RAM at ${mem_percent}% — clearing caches"
+    sync
+    echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
+    log "INFO" "Memory caches cleared"
+fi
 # --- Build JSON Payload ------------------------------------------------------
 log "INFO" "Building Discord JSON payload..."
 
 json_payload=$(cat <<EOF
 {
   "username": "iPaaS Edge Hub",
-  "avatar_url": "https://www.raspberrypi.com/app/uploads/2022/02/COLOUR-Raspberry-Pi-Symbol-Registered.png",
   "embeds": [{
     "title": "📊 Edge Monitor Report — $(hostname)",
-    "description": "Live snapshot from Raspberry Pi 3 monitoring hub.",
+    "description": "Live snapshot from Linux monitoring agent on $(hostname).",
     "color": 5763719,
     "fields": [
       {
@@ -179,7 +199,7 @@ json_payload=$(cat <<EOF
       }
     ],
     "footer": {
-      "text": "iPaaS Mini Edge Hub • Raspberry Pi 3 • Raspbian Bookworm 64-bit"
+      "text": "iPaaS Edge Monitoring Hub • Linux"
     },
     "timestamp": "${timestamp_iso}"
   }]
