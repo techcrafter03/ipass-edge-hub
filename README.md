@@ -4,7 +4,7 @@
 ![Language](https://img.shields.io/badge/language-C%20%7C%20Bash-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
-> A lightweight, zero-dependency Linux monitoring agent that deploys 
+> A lightweight  Linux monitoring agent that deploys 
 > on any Linux system in under 10 minutes — from edge devices to 
 > enterprise servers. Reads directly from the Linux kernel, fires 
 > real-time alerts via webhook API, and logs every metric with full 
@@ -23,7 +23,7 @@ environments.
 
 A single-binary Linux monitoring agent that:
 - Deploys in under 10 minutes on any Linux system
-- Requires zero external dependencies
+- no external libraries in the C engine
 - Reads metrics directly from the Linux kernel via POSIX interfaces
 - Fires instant alerts through any webhook API
 - Logs every metric to SQLite for full audit trail
@@ -122,7 +122,7 @@ reliable, auditable monitoring without enterprise complexity.
 
 ## Roadmap
 
-- [ ] One-script setup — full deployment in under 10 minutes
+- [x] One-script setup — full deployment in under 10 minutes
 - [ ] Webhook agnostic — Slack, Teams, email support
 - [ ] Configurable thresholds via config file
 - [x] Auto-shutdown on critical temperature threshold
