@@ -136,3 +136,4 @@ Self-taught developer — C, Bash, Linux, SQLite, systemd, WireGuard
 
 🌐 [Portfolio](https://techcrafter03.github.io/portfolio)
 📧 webcrafters071@gmail.com
+    stacknode.studio@gmail.com
