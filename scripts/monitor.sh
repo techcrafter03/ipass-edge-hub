@@ -229,7 +229,7 @@ echo ""
 # --- SQLite Logging ----------------------------------------------------------
 log "INFO" "Writing metrics to SQLite database..."
 
-sqlite3 ~/ipass/ipass_metrics.db << EOF
+sqlite3 "$PROJECT_DIR/ipass_metrics.db" << EOF
 INSERT INTO metrics (timestamp, cpu_temp, mem_percent, disk_percent, load_avg, uptime)
 VALUES (
     '${timestamp_iso}',
