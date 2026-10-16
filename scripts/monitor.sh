@@ -63,6 +63,7 @@ fi
 # Load webhook URL from config
 # shellcheck source=/dev/null
 source "$CONFIG_FILE"
+source "$SCRIPT_DIR/webhook.sh"
 
 if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
     log "ERROR" "DISCORD_WEBHOOK_URL is not set in $CONFIG_FILE"
@@ -111,36 +112,18 @@ alert_message=""
 if (( $(echo "$cpu_temp_c > $TEMP_WARN" | bc -l) )); then
     alert_triggered=true
     alert_message="🌡️ CPU TEMP HIGH: ${cpu_temp_c}°C (threshold: ${TEMP_WARN}°C)"
-    log "WARN" "CPU temperature critical: ${cpu_temp_c}°C"
+    log "WARN" "CPU temperature high: ${cpu_temp_c}°C"
 fi
 
 if (( $(echo "$mem_percent > $RAM_WARN" | bc -l) )); then
     alert_triggered=true
     alert_message="${alert_message}\n💾 RAM HIGH: ${mem_percent}% used (threshold: ${RAM_WARN}%)"
-    log "WARN" "RAM usage critical: ${mem_percent}%"
+    log "WARN" "RAM usage high: ${mem_percent}%"
 fi
 
 if [ "$alert_triggered" = true ]; then
-    alert_payload=$(cat <<EOF
-{
-  "username": "iPaaS Edge Hub",
-  "embeds": [{
-    "title": "🚨 ALERT — $(hostname)",
-    "description": "${alert_message}",
-    "color": 15158332,
-    "footer": {
-      "text": "iPaaS Edge Monitoring Hub • Linux"
-    },
-    "timestamp": "${timestamp_iso}"
-  }]
-}
-EOF
-)
-    curl -s -o /dev/null \
-        -H "Content-Type: application/json" \
-        -d "$alert_payload" \
-        "$DISCORD_WEBHOOK_URL"
-    log "WARN" "Alert notification sent to Discord."
+    send_webhook "🚨 ALERT — $(hostname)" "$alert_message" 15158332
+    log "WARN" "Alert dispatched to configured webhooks."
 fi
 
 # --- Build JSON Payload ------------------------------------------------------
@@ -200,13 +183,12 @@ log "INFO" "Sending payload to Discord webhook..."
 http_status=$(curl -s -o /dev/null -w "%{http_code}" \
     -H "Content-Type: application/json" \
     -d "$json_payload" \
-    "$DISCORD_WEBHOOK_URL")
+    "$DISCORD_WEBHOOK_URL") || http_status=000
 
 if [ "$http_status" -eq 204 ]; then
     log "INFO" "Discord notification sent successfully. HTTP: $http_status"
 else
-    log "ERROR" "Discord webhook failed. HTTP status: $http_status"
-    exit 1
+    log "ERROR" "Discord report failed. HTTP status: $http_status (continuing)"
 fi
 
 # --- Print Engine Report to Terminal -----------------------------------------
