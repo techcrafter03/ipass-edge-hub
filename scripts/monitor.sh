@@ -13,8 +13,16 @@ readonly SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 readonly BINARY="$PROJECT_DIR/bin/log_reader"
-readonly LOG_FILE="/var/log/ipass/monitor.log"
 readonly CONFIG_FILE="$PROJECT_DIR/config/webhook.conf"
+
+# --- Defaults (overridden by config/ipass.conf) ------------------------------
+TEMP_WARN=80.0
+RAM_WARN=85.0
+LOG_FILE="${IPASS_LOG_FILE:-/var/log/ipass/monitor.log}"
+if [ -r "$PROJECT_DIR/config/ipass.conf" ]; then
+    # shellcheck source=/dev/null
+    source "$PROJECT_DIR/config/ipass.conf"
+fi
 
 # --- Logging Function --------------------------------------------------------
 log() {
@@ -100,15 +108,15 @@ log "INFO" "CPU: ${cpu_temp_c}C | RAM: ${mem_percent}% | Disk: ${disk_percent} |
 alert_triggered=false
 alert_message=""
 
-if (( $(echo "$cpu_temp_c > 80.0" | bc -l) )); then
+if (( $(echo "$cpu_temp_c > $TEMP_WARN" | bc -l) )); then
     alert_triggered=true
-    alert_message="🌡️ CPU TEMP CRITICAL: ${cpu_temp_c}°C (threshold: 80°C)"
+    alert_message="🌡️ CPU TEMP HIGH: ${cpu_temp_c}°C (threshold: ${TEMP_WARN}°C)"
     log "WARN" "CPU temperature critical: ${cpu_temp_c}°C"
 fi
 
-if (( $(echo "$mem_percent > 85.0" | bc -l) )); then
+if (( $(echo "$mem_percent > $RAM_WARN" | bc -l) )); then
     alert_triggered=true
-    alert_message="${alert_message}\n💾 RAM CRITICAL: ${mem_percent}% used (threshold: 85%)"
+    alert_message="${alert_message}\n💾 RAM HIGH: ${mem_percent}% used (threshold: ${RAM_WARN}%)"
     log "WARN" "RAM usage critical: ${mem_percent}%"
 fi
 
