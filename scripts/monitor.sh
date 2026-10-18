@@ -79,8 +79,15 @@ log "INFO" "C engine completed successfully."
 log "INFO" "Collecting hardware statistics..."
 
 # CPU Temperature (in millidegrees → convert to Celsius)
-cpu_temp_raw=$(cat /sys/class/thermal/thermal_zone0/temp)
-cpu_temp_c=$(awk "BEGIN {printf \"%.1f\", $cpu_temp_raw/1000}")
+cpu_temp_c="N/A"
+for zone in /sys/class/thermal/thermal_zone*/temp /sys/class/hwmon/hwmon*/temp1_input; do
+    if [ -r "$zone" ] && cpu_temp_raw=$(cat "$zone" 2>/dev/null) && [ -n "$cpu_temp_raw" ]; then
+        cpu_temp_c=$(awk "BEGIN {printf \"%.1f\", $cpu_temp_raw/1000}")
+        break
+    fi
+done
+cpu_temp_sql="$cpu_temp_c"
+if [ "$cpu_temp_c" = "N/A" ]; then cpu_temp_sql="NULL"; log "WARN" "No temperature sensor found"; fi
 
 # Memory Usage from /proc/meminfo (values are in KB)
 mem_total=$(grep MemTotal  /proc/meminfo | awk '{print $2}')
@@ -109,7 +116,7 @@ log "INFO" "CPU: ${cpu_temp_c}C | RAM: ${mem_percent}% | Disk: ${disk_percent} |
 alert_triggered=false
 alert_message=""
 
-if (( $(echo "$cpu_temp_c > $TEMP_WARN" | bc -l) )); then
+if [ "$cpu_temp_c" != "N/A" ] && (( $(echo "$cpu_temp_c > $TEMP_WARN" | bc -l) )); then
     alert_triggered=true
     alert_message="🌡️ CPU TEMP HIGH: ${cpu_temp_c}°C (threshold: ${TEMP_WARN}°C)"
     log "WARN" "CPU temperature high: ${cpu_temp_c}°C"
@@ -202,7 +209,7 @@ sqlite3 "$PROJECT_DIR/ipass_metrics.db" << EOF
 INSERT INTO metrics (timestamp, cpu_temp, mem_percent, disk_percent, load_avg, uptime)
 VALUES (
     '${timestamp_iso}',
-    ${cpu_temp_c},
+    ${cpu_temp_sql},
     ${mem_percent},
     '${disk_percent}',
     '${load_avg}',
