@@ -64,6 +64,7 @@ fi
 # shellcheck source=/dev/null
 source "$CONFIG_FILE"
 source "$SCRIPT_DIR/webhook.sh"
+source "$SCRIPT_DIR/checks.sh"
 
 if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
     log "ERROR" "DISCORD_WEBHOOK_URL is not set in $CONFIG_FILE"
@@ -218,4 +219,5 @@ VALUES (
 EOF
 
 log "INFO" "Metrics written to database successfully."
+run_checks || log "ERROR" "run_checks failed"
 log "INFO" "All tasks complete. Log: $LOG_FILE"
