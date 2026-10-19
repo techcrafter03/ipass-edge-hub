@@ -30,8 +30,8 @@ rotated_since() {
     local s m
     for s in "$1".1 "$1".1.gz "$1".0 "$1"-*; do
         if [ -e "$s" ]; then
-            m=$(stat -c %Y "$s" 2>/dev/null || echo 0)
-            if [ "$m" -ge "$last_run" ]; then return 0; fi
+            m=$(stat -c '%Y %Z' "$s" 2>/dev/null | tr ' ' '\n' | sort -n | tail -1)
+            if [ "${m:-0}" -ge "$last_run" ]; then return 0; fi
         fi
     done
     return 1
