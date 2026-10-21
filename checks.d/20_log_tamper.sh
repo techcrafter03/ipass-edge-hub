@@ -62,7 +62,7 @@ done
 printf '%s' "$new_state" > "$SF"
 
 if [ -n "$crit" ]; then
-    echo "CRIT|log tampering suspected: $crit"
+    echo "CRIT|log file shrank or vanished with no matching rotation: $crit"
 elif [ -n "$warn" ]; then
     echo "WARN|$warn"
 else

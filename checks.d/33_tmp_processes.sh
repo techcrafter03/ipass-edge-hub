@@ -30,7 +30,7 @@ if [ -n "$IGNORE" ] && [ -n "$hits" ]; then
     hits="$(printf '%s\n' "$hits" | grep -Ev "$IGNORE" || true)"
 fi
 
-count=$(printf '%s\n' "$hits" | grep -c . || true)
+count=$(printf '%s\n' "$hits" | cut -d: -f1 | sort -u | grep -c . || true)
 if [ "$count" -gt 0 ]; then
     shown=$(printf '%s\n' "$hits" | head -5 | tr '\n' ' ')
     echo "CRIT|$count process(es) running from temp dirs: $shown"

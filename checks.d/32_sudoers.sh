@@ -17,8 +17,8 @@ snapshot() {
     for f in /etc/sudoers /etc/sudoers.d/*; do
         if [ -f "$f" ]; then
             h="-"
-            if [ -r "$f" ]; then h="$(sha256sum < "$f" | cut -c1-16)"; fi
-            printf '%s %s\n' "$(stat -c '%n %s %Y %i %U' "$f")" "$h"
+            if [ "$(id -u)" -eq 0 ]; then h="$(sha256sum < "$f" | cut -c1-16)"; fi
+            printf '%s %s\n' "$(stat -c '%n %s %Y %i %U %a' "$f")" "$h"
         fi
     done | sort
 }

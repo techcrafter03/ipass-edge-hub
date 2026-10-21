@@ -89,6 +89,8 @@ for zone in /sys/class/thermal/thermal_zone*/temp /sys/class/hwmon/hwmon*/temp1_
 done
 cpu_temp_sql="$cpu_temp_c"
 if [ "$cpu_temp_c" = "N/A" ]; then cpu_temp_sql="NULL"; log "WARN" "No temperature sensor found"; fi
+cpu_temp_unit="°C"
+if [ "$cpu_temp_c" = "N/A" ]; then cpu_temp_unit=""; fi
 
 # Memory Usage from /proc/meminfo (values are in KB)
 mem_total=$(grep MemTotal  /proc/meminfo | awk '{print $2}')
@@ -112,7 +114,7 @@ uptime_str=$(uptime -p | sed 's/up //')
 # ISO 8601 timestamp for Discord embed
 timestamp_iso=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
-log "INFO" "CPU: ${cpu_temp_c}C | RAM: ${mem_percent}% | Disk: ${disk_percent} | Load: ${load_avg}"
+log "INFO" "CPU: ${cpu_temp_c}${cpu_temp_unit} | RAM: ${mem_percent}% | Disk: ${disk_percent} | Load: ${load_avg}"
 # --- Alert Thresholds --------------------------------------------------------
 alert_triggered=false
 alert_message=""
@@ -147,7 +149,7 @@ json_payload=$(cat <<EOF
     "fields": [
       {
         "name": "🌡️ CPU Temperature",
-        "value": "${cpu_temp_c}°C",
+        "value": "${cpu_temp_c}${cpu_temp_unit}",
         "inline": true
       },
       {
