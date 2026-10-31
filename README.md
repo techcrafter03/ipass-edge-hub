@@ -4,133 +4,177 @@
 ![Language](https://img.shields.io/badge/language-C%20%7C%20Bash-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
-> A lightweight  Linux monitoring agent that deploys 
-> on any Linux system in under 10 minutes — from edge devices to 
-> enterprise servers. Reads directly from the Linux kernel, fires 
-> real-time alerts via webhook API, and logs every metric with full 
-> audit trail.
+# iPaaS Edge Monitoring Hub
 
-## The Problem
+Lightweight Linux security and health monitoring for MSPs and IT Systemhäuser.
+Deploys in under ten minutes, alerts to Discord and/or Slack, keeps a
+complete audit trail in SQLite, and ships a built-in dashboard — no external
+monitoring platform required.
 
-Small and medium IT environments — MSPs, Systemhäuser, edge 
-deployments — need reliable infrastructure monitoring without the 
-overhead of tools like Nagios or Zabbix. Heavy setup, complex 
-configuration, and significant resource usage make enterprise 
-monitoring tools impractical for resource-constrained or distributed 
-environments.
+## Motivation
 
-## The Solution
+Small MSPs and IT Systemhäuser need reliable Linux server monitoring without
+the overhead of enterprise tooling. Nagios and Zabbix require dedicated
+infrastructure and days of configuration before they produce a single
+alert. This project is a single agent, deployable on any Linux host with a
+handful of common packages already present on nearly every distribution.
 
-A single-binary Linux monitoring agent that:
-- Deploys in under 10 minutes on any Linux system
-- no external libraries in the C engine
-- Reads metrics directly from the Linux kernel via POSIX interfaces
-- Fires instant alerts through any webhook API
-- Logs every metric to SQLite for full audit trail
-- Responds automatically to critical thresholds
+## Architecture
 
-## What It Monitors
-
-| Metric | Source |
-|--------|--------|
-| 🌡️ CPU Temperature | `/sys/class/thermal/thermal_zone0/temp` |
-| 💾 RAM Usage | `/proc/meminfo` |
-| 💿 Disk Usage | `df /` |
-| ⚡ Load Average | `/proc/loadavg` |
-| ⏱️ System Uptime | `uptime -p` |
-| 📁 Log File Sizes | C engine via `stat()` |
-
-## Alert & Response System
-
-When thresholds are breached:
-- Instant webhook alert fires to Discord (Slack, Teams — coming soon)
-- Graceful system shutdown executes on critical temperature threshold
-- Every event logged to SQLite with full timestamp and audit trail
-
-Default thresholds (configurable):
-- CPU temperature > 80°C
-- RAM usage > 85%
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Core Engine | C (POSIX — `stat`, `opendir`, `readdir`) |
-| Orchestration | Bash (`set -euo pipefail`, signal trapping) |
-| Transport | cURL + Webhook REST API |
-| Database | SQLite |
-| Automation | systemd timer (every 5 minutes) |
-| Compatibility | Any Linux system — edge devices to servers |
-
-
-## Quick Deploy — Under 10 Minutes
-
-```bash
-# 1. Clone
-git clone https://github.com/techcrafter03/ipass-edge-hub.git
-cd ipass-edge-hub
-
-# 2. Compile the C engine
-gcc -Wall -Wextra -o bin/log_reader src/log_reader.c
-
-# 3. Configure webhook
-echo 'DISCORD_WEBHOOK_URL="your_url_here"' > config/webhook.conf
-chmod 600 config/webhook.conf
-
-# 4. Make executable
-chmod +x scripts/monitor.sh
-
-# 5. Enable systemd automation
-sudo cp systemd/ipass-monitor.service /etc/systemd/system/
-sudo cp systemd/ipass-monitor.timer /etc/systemd/system/
-sudo systemctl enable --now ipass-monitor.timer
+```mermaid
+flowchart LR
+    A[Linux Kernel<br/>/proc · /sys] --> B[C Engine<br/>log_reader.c]
+    B --> C[monitor.sh<br/>orchestration]
+    C --> D[checks.d/<br/>Detection Catalog]
+    D --> E[SQLite<br/>check_results]
+    D --> F[Webhook Alert<br/>on status change]
+    F --> G[Discord]
+    F --> H[Slack]
+    E --> I[dashboard.sh]
+    I --> J[Static Dashboard<br/>status.json]
 ```
 
-Done. Your Linux system is now monitored.
+`monitor.sh` runs on a systemd timer, collects host metrics via a small C
+engine reading `/proc` and `/sys` directly, executes every check in
+`checks.d/` in numeric order, writes every result to SQLite regardless of
+outcome, and alerts over webhook only when a check's status changes.
 
-## Use Cases
+## Detection Catalog
 
-**MSPs and IT Systemhäuser**
-Deploy on client servers for lightweight real-time monitoring 
-without enterprise tool overhead.
+Ten checks currently run on a five-minute interval. Each produces one of
+`OK`, `WARN`, `CRIT`, or `ERROR`.
 
-**Edge Computing and Industry 4.0**
-Monitor distributed Linux nodes at manufacturing sites, remote 
-locations, and IoT deployments where resource efficiency is critical.
+**Access and authentication**
+- `10_ssh_bruteforce` — repeated failed SSH logins from a single source
+- `11_ssh_takeover` — a successful login immediately following a string of failures
+- `12_authorized_keys` — new or modified SSH public keys
 
-**Server Rooms**
-Automated thermal and resource monitoring with physical response 
-capability — prevents hardware damage before it happens.
+**Accounts and evidence**
+- `21_users` — new accounts or privilege group membership changes
+- `20_log_tamper` — logs shrinking or vanishing without a matching rotation event
 
-**Audit-Ready Environments**
-Every metric, every alert, every threshold response logged to 
-SQLite — full traceability for compliance requirements.
+**Host state**
+- `30_ports` — new listening TCP ports, severity scaled by network reachability
+- `31_cron_systemd` — new or changed scheduled tasks, pattern-matched against common persistence techniques (reverse shells, piped downloads, encoded payloads)
+- `32_sudoers` — changes to sudoers configuration, with specific detection for passwordless escalation rules
+- `33_tmp_processes` — processes executing from world-writable temporary directories
+- `34_firewall_state` — firewall service stopped, ruleset modified, or no active firewall found
 
-## Architecture & Vision
-<img width="1028" height="490" alt="image" src="https://github.com/user-attachments/assets/cc780419-9e7c-4d99-87c2-384b07ef4f68" />
+Each check is a standalone script. Extending the catalog means adding a
+numbered file to `checks.d/` — no registration step required.
 
-iPaaS Edge Monitoring Hub is evolving into a fully deployable 
-Linux monitoring platform — lightweight agents that protect any 
-Linux infrastructure, from a single server to a distributed 
-network of machines. Built for MSPs and IT Systemhäuser who need 
-reliable, auditable monitoring without enterprise complexity.
-## Demo
+Full threshold reference: see `config/ipass.conf` and the Configuration
+section below.
 
-▶ [Watch full 5-minute live demo](https://youtu.be/Xi6Ed8yoJnc) 
-<img width="892" height="657" alt="image" src="https://github.com/user-attachments/assets/a0f69dde-3e76-4968-8fad-16148ff371fb" />
+## Alerting
 
+Alerts are delivered over webhook to Discord and Slack independently —
+either, both, or neither can be configured. Notifications fire on status
+transition only (`OK → WARN`, `WARN → CRIT`, `CRIT → RECOVERED`), keeping
+the channel signal-driven rather than a stream of routine pings.
+
+<!-- SCREENSHOT: Discord alert example — WARN and CRIT cards from a real test -->
+<!-- SCREENSHOT: Slack alert example — same alert, same channel setup -->
+
+## Dashboard
+
+A static dashboard renders live check status and recent host metrics,
+regenerated on every monitoring cycle. There is no backend process and
+nothing is exposed beyond a plain file server — `status.json` is written to
+disk and the page polls it client-side.
+
+<!-- SCREENSHOT: Dashboard view — all checks OK -->
+<!-- SCREENSHOT: Dashboard view — live CRIT during an attack test -->
+
+**Run it:**
+```bash
+cd dashboard
+python3 -m http.server 8080 --bind 127.0.0.1
+```
+
+**Access it securely.** The dashboard has no authentication layer by
+design — it is not intended to be reachable from an untrusted network. Bind
+it to loopback (as above) and reach it over an SSH tunnel:
+
+```bash
+ssh -L 8080:localhost:8080 user@host
+```
+
+This reuses existing SSH key-based authentication rather than introducing a
+second credential system for a read-only status page.
+
+## Setup
+
+```bash
+git clone <repo-url>
+cd ipass-edge-hub
+./setup.sh
+```
+
+`setup.sh` installs required packages (`gcc`, `curl`, `sqlite3`,
+`systemctl`, `bc`, `python3`), compiles the C engine, prompts for Discord
+and/or Slack webhook URLs, writes default thresholds, and installs the
+systemd timer. It is safe to re-run — existing configuration is never
+overwritten.
+
+## Configuration
+
+Thresholds are centralized in `config/ipass.conf`:
+
+```ini
+TEMP_WARN=80.0
+RAM_WARN=85.0
+SSH_FAIL_WARN=5
+SSH_FAIL_CRIT=20
+SSH_TAKEOVER_FAILS=5
+```
+
+Webhook endpoints are kept separately in `config/webhook.conf`, which is
+excluded from version control:
+
+```ini
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
+```
+
+## Known Limitations
+
+- **Detection is snapshot-based, not event-driven.** Checks compare
+  point-in-time state against a stored baseline on each cycle. A sequence
+  completed entirely within a single interval — create, escalate, delete —
+  can leave no trace by the following run. This is closer to MITRE's
+  Indicator Removal (T1070) than a flaw in individual checks; a planned
+  off-box collector addresses it.
+- **Local state is host-resident.** An attacker with root access on the
+  monitored host can modify baselines and logs in place; evidence is not
+  currently stored off-box.
+- **UDP is not monitored** — only TCP listening ports are tracked.
+- **The dashboard has no built-in authentication**, by design. See the
+  Dashboard section for the intended access pattern.
+- **Full visibility requires root.** Reading other users' authorized keys,
+  crontabs, sudoers content, or firewall rules is restricted at the OS
+  level; the installed systemd service runs as root.
+- **Alerts are transition-based.** A check remains in its alerted state
+  until explicitly acknowledged; a second distinct event during an active
+  alert does not produce an additional notification.
 
 ## Roadmap
 
-- [x] One-script setup — full deployment in under 10 minutes
-- [ ] Webhook agnostic — Slack, Teams, email support
-- [ ] Configurable thresholds via config file
-- [x] Auto-shutdown on critical temperature threshold
-- [ ] Web dashboard — live metrics visualization
-- [ ] Multi-machine support — central collector for distributed agents
+- Central collector and fleet dashboard for multi-host deployments
+- Event-driven detection via inotify, alongside the existing timer
+- UDP port tracking
+- Additional checks: outbound connection monitoring, cryptominer detection,
+  SUID binary auditing, basic port-scan detection
+- Health checks: pending system updates, failed systemd services, disk
+  inode exhaustion
+- MQTT and Prometheus integration for existing observability stacks
+- Optional automated response, dry-run first
+
+## License
+
+See [LICENSE](LICENSE).
 
 ## Author
-
 **Yash Kale**
 Self-taught developer — C, Bash, Linux, SQLite, systemd, WireGuard
 
