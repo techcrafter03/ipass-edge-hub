@@ -13,8 +13,14 @@ readonly SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 readonly BINARY="$PROJECT_DIR/bin/log_reader"
-readonly LOG_FILE="/var/log/ipass/monitor.log"
 readonly CONFIG_FILE="$PROJECT_DIR/config/webhook.conf"
+
+if [ -r "$PROJECT_DIR/config/ipass.conf" ]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$PROJECT_DIR/config/ipass.conf"
+    set +a
+fi
 
 # --- Logging Function --------------------------------------------------------
 log() {
@@ -55,6 +61,8 @@ fi
 # Load webhook URL from config
 # shellcheck source=/dev/null
 source "$CONFIG_FILE"
+source "$SCRIPT_DIR/webhook.sh"
+source "$SCRIPT_DIR/checks.sh"
 
 if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
     log "ERROR" "DISCORD_WEBHOOK_URL is not set in $CONFIG_FILE"
@@ -70,8 +78,17 @@ log "INFO" "C engine completed successfully."
 log "INFO" "Collecting hardware statistics..."
 
 # CPU Temperature (in millidegrees → convert to Celsius)
-cpu_temp_raw=$(cat /sys/class/thermal/thermal_zone0/temp)
-cpu_temp_c=$(awk "BEGIN {printf \"%.1f\", $cpu_temp_raw/1000}")
+cpu_temp_c="N/A"
+for zone in /sys/class/thermal/thermal_zone*/temp /sys/class/hwmon/hwmon*/temp1_input; do
+    if [ -r "$zone" ] && cpu_temp_raw=$(cat "$zone" 2>/dev/null) && [ -n "$cpu_temp_raw" ]; then
+        cpu_temp_c=$(awk "BEGIN {printf \"%.1f\", $cpu_temp_raw/1000}")
+        break
+    fi
+done
+cpu_temp_sql="$cpu_temp_c"
+if [ "$cpu_temp_c" = "N/A" ]; then cpu_temp_sql="NULL"; log "WARN" "No temperature sensor found"; fi
+cpu_temp_unit="°C"
+if [ "$cpu_temp_c" = "N/A" ]; then cpu_temp_unit=""; fi
 
 # Memory Usage from /proc/meminfo (values are in KB)
 mem_total=$(grep MemTotal  /proc/meminfo | awk '{print $2}')
@@ -95,67 +112,28 @@ uptime_str=$(uptime -p | sed 's/up //')
 # ISO 8601 timestamp for Discord embed
 timestamp_iso=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
-log "INFO" "CPU: ${cpu_temp_c}C | RAM: ${mem_percent}% | Disk: ${disk_percent} | Load: ${load_avg}"
+log "INFO" "CPU: ${cpu_temp_c}${cpu_temp_unit} | RAM: ${mem_percent}% | Disk: ${disk_percent} | Load: ${load_avg}"
 # --- Alert Thresholds --------------------------------------------------------
 alert_triggered=false
 alert_message=""
 
-if (( $(echo "$cpu_temp_c > 80.0" | bc -l) )); then
+if [ "$cpu_temp_c" != "N/A" ] && (( $(echo "$cpu_temp_c > $TEMP_WARN" | bc -l) )); then
     alert_triggered=true
-    alert_message="🌡️ CPU TEMP CRITICAL: ${cpu_temp_c}°C (threshold: 80°C)"
-    log "WARN" "CPU temperature critical: ${cpu_temp_c}°C"
+    alert_message="🌡️ CPU TEMP HIGH: ${cpu_temp_c}°C (threshold: ${TEMP_WARN}°C)"
+    log "WARN" "CPU temperature high: ${cpu_temp_c}°C"
 fi
 
-if (( $(echo "$mem_percent > 85.0" | bc -l) )); then
+if (( $(echo "$mem_percent > $RAM_WARN" | bc -l) )); then
     alert_triggered=true
-    alert_message="${alert_message}\n💾 RAM CRITICAL: ${mem_percent}% used (threshold: 85%)"
-    log "WARN" "RAM usage critical: ${mem_percent}%"
+    alert_message="${alert_message}\n💾 RAM HIGH: ${mem_percent}% used (threshold: ${RAM_WARN}%)"
+    log "WARN" "RAM usage high: ${mem_percent}%"
 fi
 
 if [ "$alert_triggered" = true ]; then
-    alert_payload=$(cat <<EOF
-{
-  "username": "iPaaS Edge Hub",
-  "embeds": [{
-    "title": "🚨 ALERT — $(hostname)",
-    "description": "${alert_message}",
-    "color": 15158332,
-    "footer": {
-      "text": "iPaaS Edge Monitoring Hub • Linux"
-    },
-    "timestamp": "${timestamp_iso}"
-  }]
-}
-EOF
-)
-    curl -s -o /dev/null \
-        -H "Content-Type: application/json" \
-        -d "$alert_payload" \
-        "$DISCORD_WEBHOOK_URL"
-    log "WARN" "Alert notification sent to Discord."
+    send_webhook "🚨 ALERT — $(hostname)" "$alert_message" 15158332
+    log "WARN" "Alert dispatched to configured webhooks."
 fi
 
-# --- Critical Threshold: Auto-Shutdown Response ----------------------
-# Two separate thresholds:
-# WARNING (existing): 80°C CPU, 85% RAM → Discord alert only
-# CRITICAL (new):     90°C CPU, 95% RAM → Alert + shutdown
-
-CRITICAL_TEMP=90.0
-CRITICAL_RAM=95.0
-if (( $(echo "$cpu_temp_c > $CRITICAL_TEMP" | bc -l) )); then
-    log "CRITICAL" "CPU at ${cpu_temp_c}°C — shutdown initiated"
-    curl -s -o /dev/null \
-        -H "Content-Type: application/json" \
-        -d "{\"username\":\"iPaaS Edge Hub\",\"content\":\"🔴 CRITICAL: CPU ${cpu_temp_c}°C — shutting down $(hostname) in 60 seconds\"}" \
-        "$DISCORD_WEBHOOK_URL"
-    sudo shutdown -h +1 "iPaaS: CPU critical threshold exceeded"
-fi
-if (( $(echo "$mem_percent > $CRITICAL_RAM" | bc -l) )); then
-    log "CRITICAL" "RAM at ${mem_percent}% — clearing caches"
-    sync
-    echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
-    log "INFO" "Memory caches cleared"
-fi
 # --- Build JSON Payload ------------------------------------------------------
 log "INFO" "Building Discord JSON payload..."
 
@@ -169,7 +147,7 @@ json_payload=$(cat <<EOF
     "fields": [
       {
         "name": "🌡️ CPU Temperature",
-        "value": "${cpu_temp_c}°C",
+        "value": "${cpu_temp_c}${cpu_temp_unit}",
         "inline": true
       },
       {
@@ -213,13 +191,12 @@ log "INFO" "Sending payload to Discord webhook..."
 http_status=$(curl -s -o /dev/null -w "%{http_code}" \
     -H "Content-Type: application/json" \
     -d "$json_payload" \
-    "$DISCORD_WEBHOOK_URL")
+    "$DISCORD_WEBHOOK_URL") || http_status=000
 
 if [ "$http_status" -eq 204 ]; then
     log "INFO" "Discord notification sent successfully. HTTP: $http_status"
 else
-    log "ERROR" "Discord webhook failed. HTTP status: $http_status"
-    exit 1
+    log "ERROR" "Discord report failed. HTTP status: $http_status (continuing)"
 fi
 
 # --- Print Engine Report to Terminal -----------------------------------------
@@ -229,11 +206,11 @@ echo ""
 # --- SQLite Logging ----------------------------------------------------------
 log "INFO" "Writing metrics to SQLite database..."
 
-sqlite3 ~/ipass/ipass_metrics.db << EOF
+sqlite3 "$PROJECT_DIR/ipass_metrics.db" << EOF
 INSERT INTO metrics (timestamp, cpu_temp, mem_percent, disk_percent, load_avg, uptime)
 VALUES (
     '${timestamp_iso}',
-    ${cpu_temp_c},
+    ${cpu_temp_sql},
     ${mem_percent},
     '${disk_percent}',
     '${load_avg}',
@@ -242,4 +219,5 @@ VALUES (
 EOF
 
 log "INFO" "Metrics written to database successfully."
+run_checks || log "ERROR" "run_checks failed"
 log "INFO" "All tasks complete. Log: $LOG_FILE"
