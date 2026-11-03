@@ -15,13 +15,11 @@ readonly PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 readonly BINARY="$PROJECT_DIR/bin/log_reader"
 readonly CONFIG_FILE="$PROJECT_DIR/config/webhook.conf"
 
-# --- Defaults (overridden by config/ipass.conf) ------------------------------
-TEMP_WARN=80.0
-RAM_WARN=85.0
-LOG_FILE="${IPASS_LOG_FILE:-/var/log/ipass/monitor.log}"
 if [ -r "$PROJECT_DIR/config/ipass.conf" ]; then
+    set -a
     # shellcheck source=/dev/null
     source "$PROJECT_DIR/config/ipass.conf"
+    set +a
 fi
 
 # --- Logging Function --------------------------------------------------------

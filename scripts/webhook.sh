@@ -23,8 +23,7 @@ EOF
 EOF
 )
         status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
-            -H "Content-Type: application/json" -d "$payload" "$SLACK_WEBHOOK_URL") || status=000
-        log "INFO" "Slack alert HTTP: $status"
+            -H "Content-Type: application/json" -d "$payload" "Slack_Webhook" "Slack alert HTTP: $status"
     fi
     return 0
 }
