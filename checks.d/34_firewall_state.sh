@@ -22,8 +22,7 @@ done
 
 rules_hash="unreadable"; rule_count="?"
 if [ "$(id -u)" -eq 0 ]; then
-    dump="$( { iptables-save 2>/dev/null | sed -e 's/\[[0-9]*:[0-9]*\]//' -e '/^#/d'; nft list ruleset 2>/dev/null; } )"
-    rules_hash="$(printf '%s' "$dump" | sha256sum | cut -c1-16)"
+    dump="$( { iptables-save 2>/dev/null | sed -e 's/\[[0-9]*:[0-9]*\]//' -e '/^#/d'; nft list ruleset 2>/dev/null | sed -e 's/counter packets [0-9]* bytes [0-9]*//'; } )"
     rule_count="$(printf '%s\n' "$dump" | grep -cE '^-A |[[:space:]](accept|drop|reject)([[:space:]]|$)' || true)"
 fi
 

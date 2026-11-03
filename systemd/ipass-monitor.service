@@ -1,0 +1,10 @@
+[Unit]
+Description=iPaaS Edge Monitoring Hub - single check run
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/spidey/ipass-dev
+ExecStart=/home/spidey/ipass-dev/scripts/monitor.sh
+
+
