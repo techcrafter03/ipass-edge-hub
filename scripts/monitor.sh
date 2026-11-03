@@ -222,4 +222,4 @@ EOF
 
 log "INFO" "Metrics written to database successfully."
 run_checks || log "ERROR" "run_checks failed"
-log "INFO" "All tasks complete. Log: $LOG_FILE"
+"$SCRIPT_DIR/dashboard.sh" || log "ERROR" "dashboard.sh failed"
