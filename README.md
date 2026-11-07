@@ -11,7 +11,7 @@ monitoring platform required.
 
 ## Demo
 
-[Watch the demo video](#) — a full walkthrough: deployment, live attack
+https://youtu.be/EGKiavXJuEw(#) — a full walkthrough: deployment, live attack
 simulations, and the dashboard reacting in real time.
 
 ## Motivation
